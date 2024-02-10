@@ -162,7 +162,8 @@ function love.load()
     pieceXCount = 4
     pieceYCount = 4
 
-    timer = 0
+    --timer = 0
+    timerLimit = 0.5
 
     -- check in bounds returns true or false
     function canPieceMove(testX, testY, testRotation)
@@ -197,7 +198,7 @@ function love.load()
             )
         end
     end
-    newSequence()
+    --newSequence()
 
     function newPiece()
         pieceX = 3
@@ -211,15 +212,29 @@ function love.load()
         end
     end
 
-    newPiece()
+    --game over
+    function reset() 
+        inert = {}
+        for y = 1, gridYCount do
+            inert[y] = {}
+            for x = 1, gridXCount do
+                inert[y][x] = ' '
+            end
+        end
+        newSequence()
+        newPiece()
+        timer = 0
+    end
 
+    --newPiece()
+    reset()
 end
 
 function love.update(dt)
     timer = timer + dt
 
     -- tetrominoes falls every .5 sec 
-    if timer >= 0.5 then
+    if timer >= timerLimit then
         timer = 0
 
         local testY = pieceY + 1
@@ -235,8 +250,40 @@ function love.update(dt)
                     end
                 end
             end
+
+            -- detecting full row
+            for y=1, gridYCount do
+                local complete = true
+                for x=1, gridXCount do
+                    if inert[y][x] == ' ' then
+                        complete = false
+                        break
+                    end
+                end
+                -- remove the complete row
+                --TODO: slow animation for row deleting
+                if complete then
+                    --print('Complete row: '..y)
+                    --print('Clear row!')
+                    for removeY = y, 2, -1 do
+                        for removeX = 1, gridXCount do
+                            inert[removeY][removeX] = 
+                            inert[removeY-1][removeX]
+                        end
+                    end
+                    for removeX = 1, gridXCount do
+                        inert[1][removeX] = ' '
+                    end
+                end
+            end
+
             -- reset to og rotation if cant move
             newPiece()
+
+            -- Game over condition if new piece cant move 
+            if not canPieceMove(pieceX, pieceY, pieceRotation) then
+                love.load() -- resets game
+            end
         end
         --print('tick') -- DELETE just for testing
         --pieceY = pieceY + 1
@@ -285,6 +332,7 @@ function love.keypressed(key)
     elseif key == 'c' then
         while canPieceMove(pieceX, pieceY+1, pieceRotation) do 
             pieceY = pieceY + 1 --TODO: slower fall animation?
+            timer = timerLimit
     end
 
     -- DELETE
@@ -307,7 +355,9 @@ function love.draw()
             o = {.92, .69, .47},
             s = {.83, .54, .93},
             t = {.97, .58, .77},
-            z = {.66, .83, .46}
+            z = {.66, .83, .46},
+
+            preview = {.75, .75, .75}
         }
 
         local colour = colours[block]
@@ -324,20 +374,33 @@ function love.draw()
             )
     end
 
+    -- padding game window
+    local paddingX = 2
+    local paddingY = 5
+
     for y = 1, gridYCount do
         for x = 1, gridXCount do
-            drawBlock(inert[y][x], x, y)
+            drawBlock(inert[y][x], x+paddingX, y+paddingY)
 
         end
     end
 
     -- draw piece 
-    for y = 1, 4 do
-        for x = 1, 4 do
+    for y = 1, pieceYCount do
+        for x = 1, pieceXCount do
             local block = pieceStructures[pieceType][pieceRotation][y][x]
             if block ~= ' ' then
                 -- TODO: turn into function?
-                drawBlock(block, x + pieceX, y+pieceY)
+                drawBlock(block, x + pieceX + paddingX, y + pieceY + paddingY)
+            end
+        end
+    end
+
+    for y = 1, pieceYCount do
+        for x = 1, pieceXCount do
+            local block = pieceStructures[sequence[#sequence]][1][y][x]
+            if block ~= ' ' then
+                drawBlock('preview', x+5, y+1)
             end
         end
     end
